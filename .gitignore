@@ -1,0 +1,43 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.ionide/
+
+# F# specific
+*.fsproj.user
+*.fs.js
+*.fs.js.map
+
+# NuGet packages
+packages/
+*.nupkg
+*.paket.*
+paket-files/
+
+# Operating System
+## Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+*~
+*.swp
+*.swo
