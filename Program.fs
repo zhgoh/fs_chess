@@ -60,9 +60,9 @@ let printBoard board =
 
     board
     |> List.iteri (fun i row ->
-        printf "%d| " (8 - i)
-        row |> List.iter (fun piece -> printf "%c " piece)
-        printfn "")
+        printf "%d| " (8 - i) // Print the left most column for the row number
+        row |> List.iter (fun piece -> printf "%c " piece) // Print the whole row
+        printfn "") // Followed by newline
 
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
