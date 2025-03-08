@@ -1,4 +1,6 @@
-﻿let BLACK_PAWN = '♟'
+﻿open System
+
+let BLACK_PAWN = '♟'
 let WHITE_PAWN = '♙'
 let BLACK_ROOK = '♜'
 let WHITE_ROOK = '♖'
@@ -55,6 +57,8 @@ let initBoard =
     board
 
 let printBoard board =
+    Console.Write "\u001bc\x1b[3J"
+
     printfn "   a b c d e f g h"
     printfn "  ─────────────────"
 
@@ -67,5 +71,24 @@ let printBoard board =
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
+let validateMoves input = false
+
+// Main game loop
+let rec gameLoop board =
+    printBoard board
+    printf "\nEnter move (e.g. 'e2 e4') or 'quit' to exit: "
+    let input = Console.ReadLine()
+
+    match input.ToLower() with
+    | "quit" -> printfn "Thanks for playing!"
+    | _ ->
+        // TODO: implement move validation and execution
+        match validateMoves input with
+        | true -> printfn "Valid moves"
+        | false -> printfn "Invalid moves, please try again."
+
+        gameLoop board
+
+// Start the game
 let board = initBoard
-printBoard board
+gameLoop board
