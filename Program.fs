@@ -97,7 +97,20 @@ let parseInput (input: string) =
         | _ -> Invalid
     | _ -> Invalid
 
-let processInput (input: string) =
+let checkMove move1 move2 (board: list<list<char>>) =
+    let getSquare (move: string) =
+        let col = int move.[0] - int 'a'
+        let row = int move.[1] - int '1'
+        row, col
+
+    let fromRow, fromCol = getSquare move1
+    let toRow, toCol = getSquare move2
+
+    // TODO: Flip the row since we count from bottom for chess but list starts from top
+    printfn "%d %d %d %d" fromRow fromCol toRow toCol
+    board.[fromRow].[fromCol] <> ' ' && board.[toRow].[toCol] = ' '
+
+let processInput input board =
     let parsed = parseInput input
 
     match parsed with
@@ -105,17 +118,15 @@ let processInput (input: string) =
     | ChessMove(move1, move2) ->
         match validateMove move1 move2 with
         | true ->
-            printfn "move: %s %s" move1 move2
-            Console.ReadLine() |> ignore
-        | false ->
-            printfn "Invalid input, please try again."
-            Console.ReadLine() |> ignore
-    | Castle castle ->
-        printfn "castle: %s" castle
-        Console.ReadLine() |> ignore
-    | Invalid ->
-        printfn "Invalid input, please try again."
-        Console.ReadLine() |> ignore
+            // TODO: Check board state here
+            match checkMove move1 move2 board with
+            | true -> printfn "move: %s %s" move1 move2
+            | false -> printfn "Invalid input, please try again."
+        | false -> printfn "Invalid input, please try again."
+    | Castle castle -> printfn "castle: %s" castle
+    | Invalid -> printfn "Invalid input, please try again."
+
+    Console.ReadLine() |> ignore
 
     parsed
 
@@ -127,7 +138,7 @@ let rec gameLoop board =
 
     let input = Console.ReadLine()
 
-    match processInput input with
+    match processInput input board with
     | Quit -> ()
     | _ -> gameLoop board
 
