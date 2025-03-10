@@ -59,29 +59,66 @@ let printBoard board =
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
-let validateMove (inputs: list<string>) =
-    let inputs =
-        inputs
-        |> List.filter (fun x -> x.Length = 2 && Char.IsAsciiLetterLower x[0] && Char.IsAsciiDigit x[1])
+// Define a type to represent the possible commands
+type Command =
+    | Quit
+    | ChessMove of string * string
+    | Castle of string
+    | Invalid
 
-    match inputs.Length with
-    | 2 -> true
-    | _ -> false
+// Check if moves are valid
+let validateMove move1 move2 =
 
-let getMoves (input: string) =
+    // NOTE: It does not consider chess pieces yet
+    let isValidSquare (square: string) =
+        square.Length = 2
+        && square.[0] >= 'a'
+        && square.[0] <= 'h'
+        && square.[1] >= '1'
+        && square.[1] <= '8'
+
+    move1 <> move2 && isValidSquare move1 && isValidSquare move2
+
+// Function to parse the input string into a Command
+let parseInput (input: string) =
     // Make sure input is valid
-    let parts = input.Split ' '
+    let trimmedInput = input.Trim().ToLower()
 
-    match parts.Length with
-    | 1 ->
-        match parts.[0] with
-        | "0-0"
-        | "0-0-0" -> Some input
-        | _ -> None
-    | _ ->
-        match validateMove [ parts.[0]; parts.[1] ] with
-        | true -> Some input
-        | false -> None
+    match trimmedInput with
+    | "q"
+    | "quit" -> Quit
+    | "0-0-0"
+    | "0-0" -> Castle trimmedInput
+    | input when input.Contains " " ->
+        let parts = input.Split ' '
+
+        match parts.Length with
+        | 2 -> ChessMove(parts.[0], parts.[1])
+        | _ -> Invalid
+    | _ -> Invalid
+
+let processInput (input: string) =
+    let parsed = parseInput input
+
+    match parsed with
+    | Quit -> printfn "Thank you for playing."
+    | ChessMove(move1, move2) ->
+        match validateMove move1 move2 with
+        | true ->
+            printfn "move: %s %s" move1 move2
+            Console.ReadLine() |> ignore
+        | false ->
+            printfn "Invalid input, please try again."
+            Console.ReadLine() |> ignore
+    | Castle castle ->
+        printfn "castle: %s" castle
+        Console.ReadLine() |> ignore
+    | Invalid ->
+        printfn "Invalid input, please try again."
+        Console.ReadLine() |> ignore
+
+    parsed
+
 
 // Main game loop
 let rec gameLoop board =
@@ -90,24 +127,9 @@ let rec gameLoop board =
 
     let input = Console.ReadLine()
 
-    match input.ToLower() with
-    | "quit"
-    | "q" -> printfn "Thanks for playing!"
-    | _ ->
-        match String.IsNullOrWhiteSpace input with
-        | true ->
-            printfn "Invalid input, type in something."
-            Console.ReadLine() |> ignore
-        | false ->
-            match getMoves input with
-            | None ->
-                printf "Invalid moves, please try again. Press enter to continue."
-                Console.ReadLine() |> ignore
-            | Some _ ->
-                printfn "%s is a valid moves" input
-                Console.ReadLine() |> ignore
-
-            gameLoop board
+    match processInput input with
+    | Quit -> ()
+    | _ -> gameLoop board
 
 // Start the game
 let board = initBoard
