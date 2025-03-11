@@ -1,50 +1,64 @@
 ﻿open System
 
-let BLACK_PAWN = '♟'
-let WHITE_PAWN = '♙'
-let BLACK_ROOK = '♜'
-let WHITE_ROOK = '♖'
-let BLACK_KNIGHT = '♞'
-let WHITE_KNIGHT = '♘'
-let BLACK_BISHOP = '♝'
-let WHITE_BISHOP = '♗'
-let BLACK_QUEEN = '♛'
-let WHITE_QUEEN = '♕'
-let BLACK_KING = '♚'
-let WHITE_KING = '♔'
+type Piece =
+    | BlackPawn = 0x265F
+    | WhitePawn = 0x2659
+    | BlackRook = 0x265C
+    | WhiteRook = 0x2656
+    | BlackKnight = 0x265E
+    | WhiteKnight = 0x2658
+    | BlackBishop = 0x265D
+    | WhiteBishop = 0x2657
+    | BlackQueen = 0x265B
+    | WhiteQueen = 0x2655
+    | BlackKing = 0x265A
+    | WhiteKing = 0x2654
+    | Blank = 0x2E // '.' character
+
+type Board = list<list<Piece>>
+type Location = { col: int; row: int }
+
+// Define a type to represent the possible commands
+type Command =
+    | Quit
+    | ChessMove of string * string
+    | Castle of string
+    | Invalid
+// Print the pieces to char
+let pieceToChar (piece: Piece) = piece |> int |> char
 
 let initBoard =
-    let row = List.init 8 (fun _ -> '.')
-    let black_pawns = List.init 8 (fun _ -> BLACK_PAWN)
-    let white_pawns = List.init 8 (fun _ -> WHITE_PAWN)
+    let row = List.init 8 (fun _ -> Piece.Blank)
+    let blackPawns = List.init 8 (fun _ -> Piece.BlackPawn)
+    let whitePawns = List.init 8 (fun _ -> Piece.WhitePawn)
 
     let board =
-        [ [ BLACK_ROOK
-            BLACK_KNIGHT
-            BLACK_BISHOP
-            BLACK_QUEEN
-            BLACK_KING
-            BLACK_BISHOP
-            BLACK_KNIGHT
-            BLACK_ROOK ]
-          black_pawns
+        [ [ Piece.BlackRook
+            Piece.BlackKnight
+            Piece.BlackBishop
+            Piece.BlackQueen
+            Piece.BlackKing
+            Piece.BlackBishop
+            Piece.BlackKnight
+            Piece.BlackRook ]
+          blackPawns
           row
           row
           row
           row
-          white_pawns
-          [ WHITE_ROOK
-            WHITE_KNIGHT
-            WHITE_BISHOP
-            WHITE_QUEEN
-            WHITE_KING
-            WHITE_BISHOP
-            WHITE_KNIGHT
-            WHITE_ROOK ] ]
+          whitePawns
+          [ Piece.WhiteRook
+            Piece.WhiteKnight
+            Piece.WhiteBishop
+            Piece.WhiteQueen
+            Piece.WhiteKing
+            Piece.WhiteBishop
+            Piece.WhiteKnight
+            Piece.WhiteRook ] ]
 
     board
 
-let printBoard board =
+let printBoard (board: Board) =
     Console.Write "\u001bc\x1b[3J"
 
     printfn "   a b c d e f g h"
@@ -53,21 +67,16 @@ let printBoard board =
     board
     |> List.iteri (fun i row ->
         printf "%d| " (8 - i) // Print the left most column for the row number
-        row |> List.iter (fun piece -> printf "%c " piece) // Print the whole row
+        row |> List.iter (fun piece -> printf "%c " (pieceToChar piece)) // Print the whole row
         printfn "") // Followed by newline
 
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
-// Define a type to represent the possible commands
-type Command =
-    | Quit
-    | ChessMove of string * string
-    | Castle of string
-    | Invalid
+
 
 // Check if moves are valid
-let validateMove move1 move2 =
+let validateMove (move1: string) (move2: string) =
 
     // NOTE: It does not consider chess pieces yet
     let isValidSquare (square: string) =
@@ -97,24 +106,58 @@ let parseInput (input: string) =
         | _ -> Invalid
     | _ -> Invalid
 
-let checkMove move1 move2 (board: list<list<char>>) =
-    let getSquare (move: string) =
-        let col = int move.[0] - int 'a'
-        let row = int move.[1] - int '1'
-        row, col
 
-    let fromRow, fromCol = getSquare move1
-    let toRow, toCol = getSquare move2
+let isEmptySpace (loc: Location) (board: Board) = board.[loc.row].[loc.col] = Piece.Blank
 
-    // TODO: Flip the row since we count from bottom for chess but list starts from top
-    printfn "%d %d %d %d" fromRow fromCol toRow toCol
-    board.[fromRow].[fromCol] <> ' ' && board.[toRow].[toCol] = ' '
 
-let processInput input board =
+
+let getSquare (move: string) =
+    let col = int (move.[0] - 'a')
+    let row = 7 - int (move.[1] - '1') // Flip the board upside down for array indexing
+    { col = col; row = row }
+
+let isValidMoveTo (piece: Piece) (loc: Location) (board: Board) =
+    match piece with
+    | Piece.BlackPawn -> true
+    | Piece.WhitePawn -> true
+    | Piece.BlackRook
+    | Piece.WhiteRook -> true
+    | Piece.BlackKnight
+    | Piece.WhiteKnight -> true
+    | Piece.BlackBishop
+    | Piece.WhiteBishop -> true
+    | Piece.BlackQueen
+    | Piece.WhiteQueen -> true
+    | Piece.BlackKing
+    | Piece.WhiteKing -> true
+    | _ -> false
+
+let isValidMoveFrom (loc: Location) (board: Board) =
+    let ch = board.[loc.row].[loc.col]
+
+    match ch with
+    | Piece.Blank -> None
+    | _ -> Some ch
+
+// Check if the move is valid
+let checkMove (move1: string) (move2: string) (board: Board) =
+    let fromLoc = getSquare move1
+    let toLoc = getSquare move2
+
+    // printfn "moving %c to %c" board.[fromLoc.row].[fromLoc.col] board.[toLoc.row].[toLoc.col]
+    match isValidMoveFrom fromLoc board with
+    | Some ch -> isValidMoveTo ch toLoc board
+    | None ->
+        printfn "No valid pieces chosen."
+        false
+
+
+
+let processInput (input: string) (board: Board) =
     let parsed = parseInput input
 
     match parsed with
-    | Quit -> printfn "Thank you for playing."
+    | Quit -> printfn "Thank you for playing. Press enter to continue."
     | ChessMove(move1, move2) ->
         match validateMove move1 move2 with
         | true ->
@@ -132,7 +175,7 @@ let processInput input board =
 
 
 // Main game loop
-let rec gameLoop board =
+let rec gameLoop (board: Board) =
     printBoard board
     printf "\nEnter move (e.g. 'e2 e4') or 'quit' to exit: "
 
