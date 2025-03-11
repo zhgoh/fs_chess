@@ -58,6 +58,7 @@ let initBoard =
 
     board
 
+// Print the game board
 let printBoard (board: Board) =
     Console.Write "\u001bc\x1b[3J"
 
@@ -72,8 +73,6 @@ let printBoard (board: Board) =
 
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
-
-
 
 // Check if moves are valid
 let validateMove (move1: string) (move2: string) =
@@ -106,50 +105,122 @@ let parseInput (input: string) =
         | _ -> Invalid
     | _ -> Invalid
 
-
-let isEmptySpace (loc: Location) (board: Board) = board.[loc.row].[loc.col] = Piece.Blank
-
-
-
 let getSquare (move: string) =
     let col = int (move.[0] - 'a')
     let row = 7 - int (move.[1] - '1') // Flip the board upside down for array indexing
     { col = col; row = row }
 
-let isValidMoveTo (piece: Piece) (loc: Location) (board: Board) =
-    match piece with
-    | Piece.BlackPawn -> true
-    | Piece.WhitePawn -> true
-    | Piece.BlackRook
-    | Piece.WhiteRook -> true
-    | Piece.BlackKnight
-    | Piece.WhiteKnight -> true
-    | Piece.BlackBishop
-    | Piece.WhiteBishop -> true
-    | Piece.BlackQueen
-    | Piece.WhiteQueen -> true
-    | Piece.BlackKing
-    | Piece.WhiteKing -> true
-    | _ -> false
+let isValidPosition loc =
+    loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
-let isValidMoveFrom (loc: Location) (board: Board) =
-    let ch = board.[loc.row].[loc.col]
+let generatePawnMove (loc: Location) (dir: int) =
+    // TODO: Check if pawn at start location, directions becomes 2
+    [ { col = loc.col; row = loc.row + dir } ] |> List.filter isValidPosition
 
-    match ch with
-    | Piece.Blank -> None
-    | _ -> Some ch
+let generateKnightMove (loc: Location) =
+    [ { col = loc.col - 1; row = loc.row - 2 }
+      { col = loc.col + 1; row = loc.row - 2 }
+      { col = loc.col + 2; row = loc.row - 1 }
+      { col = loc.col + 2; row = loc.row + 1 }
+      { col = loc.col + 1; row = loc.row + 2 }
+      { col = loc.col - 1; row = loc.row + 2 }
+      { col = loc.col - 2; row = loc.row + 1 }
+      { col = loc.col - 2; row = loc.row - 1 } ]
+    |> List.filter isValidPosition
+
+let generateKingMove (loc: Location) =
+    [ { col = loc.col; row = loc.row + 1 }
+      { col = loc.col; row = loc.row - 1 }
+      { col = loc.col + 1; row = loc.row }
+      { col = loc.col - 1; row = loc.row }
+      { col = loc.col + 1; row = loc.row + 1 }
+      { col = loc.col - 1; row = loc.row - 1 }
+      { col = loc.col + 1; row = loc.row - 1 }
+      { col = loc.col - 1; row = loc.row + 1 } ]
+    |> List.filter isValidPosition
+
+let generateBishopMove (loc: Location) =
+    let directions =
+        [ { col = 1; row = 1 }
+          { col = 1; row = -1 }
+          { col = -1; row = 1 }
+          { col = -1; row = -1 } ]
+
+    let rec generateLine (loc: Location) (dir: Location) =
+        let newPos =
+            { col = loc.col + dir.col
+              row = loc.row + dir.row }
+
+        match isValidPosition newPos with
+        | true -> newPos :: generateLine newPos dir
+        | false -> []
+
+    directions |> List.collect (generateLine loc)
+
+let generateRookMove (loc: Location) =
+    let directions =
+        [ { col = 1; row = 0 }
+          { col = -1; row = 0 }
+          { col = 0; row = 1 }
+          { col = 0; row = -1 } ]
+
+    let rec generateLine (loc: Location) (dir: Location) =
+        let newPos =
+            { col = loc.col + dir.col
+              row = loc.row + dir.row }
+
+        match isValidPosition newPos with
+        | true -> newPos :: generateLine newPos dir
+        | false -> []
+
+    directions |> List.collect (generateLine loc)
+
+let generateQueenMove (loc: Location) =
+    generateBishopMove loc @ generateRookMove loc
+
+let generateMoves (piece: Piece) (loc: Location) =
+    let moves =
+        match piece with
+        | Piece.BlackPawn -> generatePawnMove loc 1
+        | Piece.WhitePawn -> generatePawnMove loc -1
+        | Piece.BlackRook
+        | Piece.WhiteRook -> generateRookMove loc
+        | Piece.BlackKnight
+        | Piece.WhiteKnight -> generateKnightMove loc
+        | Piece.BlackBishop
+        | Piece.WhiteBishop -> generateBishopMove loc
+        | Piece.BlackQueen
+        | Piece.WhiteQueen -> generateQueenMove loc
+        | Piece.BlackKing
+        | Piece.WhiteKing -> generateKingMove loc
+        | _ -> []
+
+    // printfn "%A" moves
+    moves
+
 
 // Check if the move is valid
 let checkMove (move1: string) (move2: string) (board: Board) =
     let fromLoc = getSquare move1
     let toLoc = getSquare move2
 
-    // printfn "moving %c to %c" board.[fromLoc.row].[fromLoc.col] board.[toLoc.row].[toLoc.col]
-    match isValidMoveFrom fromLoc board with
-    | Some ch -> isValidMoveTo ch toLoc board
-    | None ->
-        printfn "No valid pieces chosen."
+    // printfn
+    // "moving %c to %c from %A %A"
+    // (pieceToChar board.[fromLoc.row].[fromLoc.col])
+    // (pieceToChar board.[toLoc.row].[toLoc.col])
+    // fromLoc
+    // toLoc
+
+    let piece = board.[fromLoc.row].[fromLoc.col]
+    let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
+
+    match moves.Length with
+    | 0 ->
+        printfn "No valid moves."
         false
+    | _ ->
+        printfn "Valid move."
+        true
 
 
 
