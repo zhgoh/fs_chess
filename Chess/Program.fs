@@ -1,4 +1,6 @@
-﻿open System
+﻿module Chess
+
+open System
 
 type Piece =
     | BlackPawn = 0x265F
@@ -14,6 +16,10 @@ type Piece =
     | BlackKing = 0x265A
     | WhiteKing = 0x2654
     | Blank = 0x2E // '.' character
+
+type PawnDirection =
+  | Up
+  | Down
 
 type Board = list<list<Piece>>
 type Location = { col: int; row: int }
@@ -113,9 +119,18 @@ let getSquare (move: string) =
 let isValidPosition loc =
     loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
-let generatePawnMove (loc: Location) (dir: int) =
-    // TODO: Check if pawn at start location, directions becomes 2
-    [ { col = loc.col; row = loc.row + dir } ] |> List.filter isValidPosition
+let generatePawnMove (loc: Location) (dir: PawnDirection) =
+    let offset = 
+      match dir with
+      | PawnDirection.Up -> -1
+      | PawnDirection.Down -> 1
+
+    let start =
+      match loc with
+      | {row = 1}
+      | {row = 6} ->  [{ col = loc.col; row = loc.row + offset + offset }]
+      | _ -> []
+    [{ col = loc.col; row = loc.row + offset }] @ start |> List.filter isValidPosition
 
 let generateKnightMove (loc: Location) =
     [ { col = loc.col - 1; row = loc.row - 2 }
@@ -181,8 +196,8 @@ let generateQueenMove (loc: Location) =
 let generateMoves (piece: Piece) (loc: Location) =
     let moves =
         match piece with
-        | Piece.BlackPawn -> generatePawnMove loc 1
-        | Piece.WhitePawn -> generatePawnMove loc -1
+        | Piece.BlackPawn -> generatePawnMove loc PawnDirection.Down
+        | Piece.WhitePawn -> generatePawnMove loc PawnDirection.Up
         | Piece.BlackRook
         | Piece.WhiteRook -> generateRookMove loc
         | Piece.BlackKnight
