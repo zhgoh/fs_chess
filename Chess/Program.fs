@@ -18,8 +18,8 @@ type Piece =
     | Blank = 0x2E // '.' character
 
 type PawnDirection =
-  | Up
-  | Down
+    | Up
+    | Down
 
 type Board = list<list<Piece>>
 type Location = { col: int; row: int }
@@ -120,17 +120,23 @@ let isValidPosition loc =
     loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
 let generatePawnMove (loc: Location) (dir: PawnDirection) =
-    let offset = 
-      match dir with
-      | PawnDirection.Up -> -1
-      | PawnDirection.Down -> 1
+    let offset =
+        match dir with
+        | Up -> -1
+        | Down -> 1
 
     let start =
-      match loc with
-      | {row = 1}
-      | {row = 6} ->  [{ col = loc.col; row = loc.row + offset + offset }]
-      | _ -> []
-    [{ col = loc.col; row = loc.row + offset }] @ start |> List.filter isValidPosition
+        match loc with
+        | { row = 1 }
+        | { row = 6 } ->
+            [ { col = loc.col
+                row = loc.row + offset + offset } ]
+        | _ -> []
+
+    [ { col = loc.col
+        row = loc.row + offset } ]
+    @ start
+    |> List.filter isValidPosition
 
 let generateKnightMove (loc: Location) =
     [ { col = loc.col - 1; row = loc.row - 2 }
@@ -196,8 +202,8 @@ let generateQueenMove (loc: Location) =
 let generateMoves (piece: Piece) (loc: Location) =
     let moves =
         match piece with
-        | Piece.BlackPawn -> generatePawnMove loc PawnDirection.Down
-        | Piece.WhitePawn -> generatePawnMove loc PawnDirection.Up
+        | Piece.BlackPawn -> generatePawnMove loc Down
+        | Piece.WhitePawn -> generatePawnMove loc Up
         | Piece.BlackRook
         | Piece.WhiteRook -> generateRookMove loc
         | Piece.BlackKnight
