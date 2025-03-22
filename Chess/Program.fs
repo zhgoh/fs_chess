@@ -23,8 +23,16 @@ type PawnDirection =
     | Up
     | Down
 
+/// Used to determine the turn
+type Turn =
+    | White
+    | Black
+
 /// Alias for the data in the game board
 type ChessBoard = list<list<ChessPiece>>
+
+/// Game state to store board and turn info
+type State = { board: ChessBoard; turn: Turn }
 
 /// Location is just a record of positions on the board
 type Location = { col: int; row: int }
@@ -165,29 +173,55 @@ let getSquare (move: string) =
     { col = col; row = row }
 
 /// Check if the move is valid
-let validateMove (move1: string) (move2: string) (board: ChessBoard) =
+let validateMove (move1: string) (move2: string) (state: State) =
     match isValidMove move1 move2 with
     | true ->
         let fromLoc = getSquare move1
         let toLoc = getSquare move2
 
-        let piece = board[fromLoc.row][fromLoc.col]
-        let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
+        let piece = state.board[fromLoc.row][fromLoc.col]
 
-        // Filter out piece on the board, only applicable for pawn
-        let moves =
+        // Check pieces to move corresponds to turn
+        let isCorrectTurn =
             match piece with
             | ChessPiece.BlackPawn
-            | ChessPiece.WhitePawn -> moves |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank)
-            | _ -> moves
+            | ChessPiece.BlackRook
+            | ChessPiece.BlackKnight
+            | ChessPiece.BlackBishop
+            | ChessPiece.BlackQueen
+            | ChessPiece.BlackKing -> state.turn = Black
+            | ChessPiece.WhitePawn
+            | ChessPiece.WhiteRook
+            | ChessPiece.WhiteKnight
+            | ChessPiece.WhiteBishop
+            | ChessPiece.WhiteQueen
+            | ChessPiece.WhiteKing -> state.turn = White
+            | _ -> false
 
-        match moves.Length with
-        | 0 ->
-            printfn "No valid moves."
+        match isCorrectTurn with
+        | true ->
+            let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
+
+            // Filter out piece on the board, only applicable for pawn
+            let moves =
+                match piece with
+                | ChessPiece.BlackPawn
+                | ChessPiece.WhitePawn ->
+                    moves
+                    |> List.filter (fun loc -> state.board[loc.row][loc.col] = ChessPiece.Blank)
+                | _ -> moves
+
+            // If there are no moves generated, then it is not a valid move
+            match moves.Length with
+            | 0 ->
+                printfn "No valid moves."
+                false
+            | _ ->
+                printfn $"Moving %A{piece} from %s{move1} to %s{move2}"
+                true
+        | false ->
+            printfn "Incorrect turn."
             false
-        | _ ->
-            printfn $"Moving %A{piece} from %s{move1} to %s{move2}"
-            true
     | false -> false
 
 /// Parse the input string into a Command
@@ -243,14 +277,21 @@ let printBoard (board: ChessBoard) =
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
-/// Main game loop
-let rec gameLoop (board: ChessBoard) =
-    board |> printBoard
-    printf "\nEnter move (e.g. 'e2 e4') or 'quit' to exit: "
+let switchTurn turn =
+    match turn with
+    | Black -> White
+    | White -> Black
 
-    let rec restart board =
+/// Main game loop
+let rec gameLoop (state: State) =
+    state.board |> printBoard
+
+    printfn $"\nIt is currently %A{state.turn}'s turn."
+    printf "Enter move (e.g. 'e2 e4') or 'quit' to exit: "
+
+    let rec restart state =
         Console.ReadLine() |> ignore
-        board |> gameLoop
+        state |> gameLoop
 
     let input = Console.ReadLine()
     let command = parseInput input
@@ -259,7 +300,7 @@ let rec gameLoop (board: ChessBoard) =
     let command =
         match command with
         | ChessMove(move1, move2) ->
-            match board |> validateMove move1 move2 with
+            match state |> validateMove move1 move2 with
             | true -> ChessMove(move1, move2)
             | false -> Invalid
         | _ -> command
@@ -269,41 +310,47 @@ let rec gameLoop (board: ChessBoard) =
     | Quit -> printfn "Thank you for playing. Press enter to continue."
     | Invalid ->
         printfn "Invalid input, please try again."
-        board |> restart
-    | Castle castle -> board |> restart
+        state |> restart
+    | Castle castle -> state |> restart
     | ChessMove(move1, move2) ->
-        let board = board |> movePiece (getSquare move1) (getSquare move2)
-        board |> restart
+        let state =
+            { board = state.board |> movePiece (getSquare move1) (getSquare move2)
+              turn = switchTurn state.turn }
+
+        state |> restart
 
 /// Init the chess board
-let initBoard =
+let initState =
     let row = List.init 8 (fun _ -> ChessPiece.Blank)
     let blackPawns = List.init 8 (fun _ -> ChessPiece.BlackPawn)
     let whitePawns = List.init 8 (fun _ -> ChessPiece.WhitePawn)
 
-    [ [ ChessPiece.BlackRook
-        ChessPiece.BlackKnight
-        ChessPiece.BlackBishop
-        ChessPiece.BlackQueen
-        ChessPiece.BlackKing
-        ChessPiece.BlackBishop
-        ChessPiece.BlackKnight
-        ChessPiece.BlackRook ]
-      blackPawns
-      row
-      row
-      row
-      row
-      whitePawns
-      [ ChessPiece.WhiteRook
-        ChessPiece.WhiteKnight
-        ChessPiece.WhiteBishop
-        ChessPiece.WhiteQueen
-        ChessPiece.WhiteKing
-        ChessPiece.WhiteBishop
-        ChessPiece.WhiteKnight
-        ChessPiece.WhiteRook ] ]
+    let board =
+        [ [ ChessPiece.BlackRook
+            ChessPiece.BlackKnight
+            ChessPiece.BlackBishop
+            ChessPiece.BlackQueen
+            ChessPiece.BlackKing
+            ChessPiece.BlackBishop
+            ChessPiece.BlackKnight
+            ChessPiece.BlackRook ]
+          blackPawns
+          row
+          row
+          row
+          row
+          whitePawns
+          [ ChessPiece.WhiteRook
+            ChessPiece.WhiteKnight
+            ChessPiece.WhiteBishop
+            ChessPiece.WhiteQueen
+            ChessPiece.WhiteKing
+            ChessPiece.WhiteBishop
+            ChessPiece.WhiteKnight
+            ChessPiece.WhiteRook ] ]
+
+    { board = board; turn = White }
 
 /// Start the game
-let board = initBoard
+let board = initState
 board |> gameLoop
