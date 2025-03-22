@@ -32,6 +32,6 @@ dotnet test
 
 - Capturing pieces
 - En passe
-- Promotion
 - Win condition
+- Castling
 - More tests

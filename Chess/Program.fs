@@ -50,6 +50,7 @@ let isLocationInsideBoard loc =
 
 /// Generate moves for Pawn based on the direction it is facing
 let generatePawnMove (loc: Location) (dir: PawnDirection) =
+    //TODO: Generate en passe moves
     let offset =
         match dir with
         | Up -> -1
@@ -105,6 +106,7 @@ let generateBishopMove (loc: Location) =
             { col = loc.col + dir.col
               row = loc.row + dir.row }
 
+        // TODO: Check recursion in non tail position
         match isLocationInsideBoard newPos with
         | true -> newPos :: generateLine newPos dir
         | false -> []
@@ -124,6 +126,7 @@ let generateRookMove (loc: Location) =
             { col = loc.col + dir.col
               row = loc.row + dir.row }
 
+        // TODO: Check recursion in non tail position
         match isLocationInsideBoard newPos with
         | true -> newPos :: generateLine newPos dir
         | false -> []
@@ -254,8 +257,7 @@ let updateCell loc piece board =
     |> List.mapi (fun r rowList -> rowList |> List.mapi (fun c -> setVal r loc.row c loc.col))
 
 /// Move the piece from one location to another
-let movePiece (move1: Location) (move2: Location) (board: ChessBoard) =
-    let piece = board[move1.row][move1.col]
+let movePiece (piece: ChessPiece) (move1: Location) (move2: Location) (board: ChessBoard) =
     board |> updateCell move1 ChessPiece.Blank |> updateCell move2 piece
 
 /// Print the pieces to char
@@ -282,6 +284,47 @@ let switchTurn turn =
     | Black -> White
     | White -> Black
 
+let hasPromotion piece dest =
+    match piece with
+    | ChessPiece.WhitePawn
+    | ChessPiece.BlackPawn -> true
+    | _ -> false
+
+let rec promotePawn turn =
+    printf "Pawn promotion, choose piece to be promoted to Rook (r), Knight (k), Bishop (b), Queen (q): "
+    let input = Console.ReadLine()
+    // Make sure input is valid
+    let trimmedInput = input.Trim().ToLower()
+
+    match trimmedInput with
+    | "r" ->
+        printfn "Promoted to Rook."
+
+        match turn with
+        | Black -> ChessPiece.BlackRook
+        | White -> ChessPiece.WhiteRook
+    | "k" ->
+        printfn "Promoted to Knight."
+
+        match turn with
+        | Black -> ChessPiece.BlackKnight
+        | White -> ChessPiece.WhiteKnight
+    | "b" ->
+        printfn "Promoted to Bishop."
+
+        match turn with
+        | Black -> ChessPiece.BlackBishop
+        | White -> ChessPiece.WhiteBishop
+    | "q" ->
+        printfn "Promoted to Queen."
+
+        match turn with
+        | Black -> ChessPiece.BlackQueen
+        | White -> ChessPiece.WhiteQueen
+    | _ ->
+        printfn "Invalid promotion."
+        promotePawn turn
+
 /// Main game loop
 let rec gameLoop (state: State) =
     state.board |> printBoard
@@ -289,7 +332,7 @@ let rec gameLoop (state: State) =
     printfn $"\nIt is currently %A{state.turn}'s turn."
     printf "Enter move (e.g. 'e2 e4') or 'quit' to exit: "
 
-    let rec restart state =
+    let restart state =
         Console.ReadLine() |> ignore
         state |> gameLoop
 
@@ -313,11 +356,28 @@ let rec gameLoop (state: State) =
         state |> restart
     | Castle castle -> state |> restart
     | ChessMove(move1, move2) ->
-        let state =
-            { board = state.board |> movePiece (getSquare move1) (getSquare move2)
-              turn = switchTurn state.turn }
+        // Pawn promotion
+        let start = getSquare move1
+        let piece = state.board[start.row][start.col]
 
-        state |> restart
+        match hasPromotion piece (getSquare move2) with
+        | true ->
+            let piece = promotePawn state.turn
+
+            let state =
+                { board = state.board |> movePiece piece (getSquare move1) (getSquare move2)
+                  turn = switchTurn state.turn }
+
+            state |> restart
+        | false ->
+            let start = getSquare move1
+            let piece = state.board[start.row][start.col]
+
+            let state =
+                { board = state.board |> movePiece piece start (getSquare move2)
+                  turn = switchTurn state.turn }
+
+            state |> restart
 
 /// Init the chess board
 let initState =
@@ -352,5 +412,14 @@ let initState =
     { board = board; turn = White }
 
 /// Start the game
-let board = initState
-board |> gameLoop
+let state = initState
+state |> gameLoop
+
+// TODO: Make this as a test
+// For testing pawn promotion
+// let newState =
+//     { board =
+//         updateCell (getSquare "a8") ChessPiece.Blank state.board
+//         |> updateCell (getSquare "a7") ChessPiece.WhitePawn
+//       turn = White }
+// newState |> gameLoop
