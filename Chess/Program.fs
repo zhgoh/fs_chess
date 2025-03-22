@@ -2,7 +2,8 @@
 
 open System
 
-type Piece =
+/// Chess pieces and the unicode char
+type ChessPiece =
     | BlackPawn = 0x265F
     | WhitePawn = 0x2659
     | BlackRook = 0x265C
@@ -17,78 +18,29 @@ type Piece =
     | WhiteKing = 0x2654
     | Blank = 0x2E // '.' character
 
+/// Used to determine the direction the pawn is facing
 type PawnDirection =
     | Up
     | Down
 
-type Board = list<list<Piece>>
+/// Alias for the data in the game board
+type ChessBoard = list<list<ChessPiece>>
+
+/// Location is just a record of positions on the board
 type Location = { col: int; row: int }
 
-// Define a type to represent the possible commands
+/// Possible states of the game determined by inputs
 type Command =
     | Quit
     | ChessMove of string * string
     | Castle of string
     | Invalid
 
-// Print the pieces to char
-let pieceToChar (piece: Piece) = piece |> int |> char
-
-let initBoard =
-    let row = List.init 8 (fun _ -> Piece.Blank)
-    let blackPawns = List.init 8 (fun _ -> Piece.BlackPawn)
-    let whitePawns = List.init 8 (fun _ -> Piece.WhitePawn)
-
-    let board =
-        [ [ Piece.BlackRook
-            Piece.BlackKnight
-            Piece.BlackBishop
-            Piece.BlackQueen
-            Piece.BlackKing
-            Piece.BlackBishop
-            Piece.BlackKnight
-            Piece.BlackRook ]
-          blackPawns
-          row
-          row
-          row
-          row
-          whitePawns
-          [ Piece.WhiteRook
-            Piece.WhiteKnight
-            Piece.WhiteBishop
-            Piece.WhiteQueen
-            Piece.WhiteKing
-            Piece.WhiteBishop
-            Piece.WhiteKnight
-            Piece.WhiteRook ] ]
-
-    board
-
-// Print the game board
-let printBoard (board: Board) =
-    Console.Write "\u001bc\x1b[3J"
-
-    printfn "   a b c d e f g h"
-    printfn "  ─────────────────"
-
-    board
-    |> List.iteri (fun i row ->
-        printf $"%d{8 - i}| " // Print the left most column for the row number
-        row |> List.iter (fun piece -> printf $"%c{pieceToChar piece} ") // Print the whole row
-        printfn "") // Followed by newline
-
-    printfn "  ─────────────────"
-    printfn "   a b c d e f g h"
-
-let getSquare (move: string) =
-    let col = int (move[0] - 'a')
-    let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
-    { col = col; row = row }
-
-let isValidPosition loc =
+/// Check if location is within the chessboard
+let isLocationInsideBoard loc =
     loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
+/// Generate moves for Pawn based on the direction it is facing
 let generatePawnMove (loc: Location) (dir: PawnDirection) =
     let offset =
         match dir with
@@ -106,8 +58,9 @@ let generatePawnMove (loc: Location) (dir: PawnDirection) =
     [ { col = loc.col
         row = loc.row + offset } ]
     @ start
-    |> List.filter isValidPosition
+    |> List.filter isLocationInsideBoard
 
+/// Generate moves for Knight
 let generateKnightMove (loc: Location) =
     [ { col = loc.col - 1; row = loc.row - 2 }
       { col = loc.col + 1; row = loc.row - 2 }
@@ -117,8 +70,9 @@ let generateKnightMove (loc: Location) =
       { col = loc.col - 1; row = loc.row + 2 }
       { col = loc.col - 2; row = loc.row + 1 }
       { col = loc.col - 2; row = loc.row - 1 } ]
-    |> List.filter isValidPosition
+    |> List.filter isLocationInsideBoard
 
+/// Generate moves for King
 let generateKingMove (loc: Location) =
     [ { col = loc.col; row = loc.row + 1 }
       { col = loc.col; row = loc.row - 1 }
@@ -128,8 +82,9 @@ let generateKingMove (loc: Location) =
       { col = loc.col - 1; row = loc.row - 1 }
       { col = loc.col + 1; row = loc.row - 1 }
       { col = loc.col - 1; row = loc.row + 1 } ]
-    |> List.filter isValidPosition
+    |> List.filter isLocationInsideBoard
 
+/// Generate moves for Bishop
 let generateBishopMove (loc: Location) =
     let directions =
         [ { col = 1; row = 1 }
@@ -142,12 +97,13 @@ let generateBishopMove (loc: Location) =
             { col = loc.col + dir.col
               row = loc.row + dir.row }
 
-        match isValidPosition newPos with
+        match isLocationInsideBoard newPos with
         | true -> newPos :: generateLine newPos dir
         | false -> []
 
     directions |> List.collect (generateLine loc)
 
+/// Generate moves for Rook
 let generateRookMove (loc: Location) =
     let directions =
         [ { col = 1; row = 0 }
@@ -160,33 +116,35 @@ let generateRookMove (loc: Location) =
             { col = loc.col + dir.col
               row = loc.row + dir.row }
 
-        match isValidPosition newPos with
+        match isLocationInsideBoard newPos with
         | true -> newPos :: generateLine newPos dir
         | false -> []
 
     directions |> List.collect (generateLine loc)
 
+/// Generate moves for Queen
 let generateQueenMove (loc: Location) =
     generateBishopMove loc @ generateRookMove loc
 
-let generateMoves (piece: Piece) (loc: Location) =
+/// Generate moves based on the different pieces
+let generateMoves (piece: ChessPiece) (loc: Location) =
     match piece with
-    | Piece.BlackPawn -> generatePawnMove loc Down
-    | Piece.WhitePawn -> generatePawnMove loc Up
-    | Piece.BlackRook
-    | Piece.WhiteRook -> generateRookMove loc
-    | Piece.BlackKnight
-    | Piece.WhiteKnight -> generateKnightMove loc
-    | Piece.BlackBishop
-    | Piece.WhiteBishop -> generateBishopMove loc
-    | Piece.BlackQueen
-    | Piece.WhiteQueen -> generateQueenMove loc
-    | Piece.BlackKing
-    | Piece.WhiteKing -> generateKingMove loc
+    | ChessPiece.BlackPawn -> generatePawnMove loc Down
+    | ChessPiece.WhitePawn -> generatePawnMove loc Up
+    | ChessPiece.BlackRook
+    | ChessPiece.WhiteRook -> generateRookMove loc
+    | ChessPiece.BlackKnight
+    | ChessPiece.WhiteKnight -> generateKnightMove loc
+    | ChessPiece.BlackBishop
+    | ChessPiece.WhiteBishop -> generateBishopMove loc
+    | ChessPiece.BlackQueen
+    | ChessPiece.WhiteQueen -> generateQueenMove loc
+    | ChessPiece.BlackKing
+    | ChessPiece.WhiteKing -> generateKingMove loc
     | _ -> []
 
-// Check if moves are within the board
-let isMoveInBoard (move1: string) (move2: string) =
+/// Check if moves is valid and within the chessboard
+let isValidMove (move1: string) (move2: string) =
 
     // NOTE: It does not consider chess pieces yet
     let isValidSquare (square: string) =
@@ -198,9 +156,17 @@ let isMoveInBoard (move1: string) (move2: string) =
 
     move1 <> move2 && isValidSquare move1 && isValidSquare move2
 
-// Check if the move is valid
-let checkMove (move1: string) (move2: string) (board: Board) =
-    match isMoveInBoard move1 move2 with
+/// Get the location from the string representation, i.e. a1 -> {col = 0; row = 7 },
+/// Note: rows are inverted, because in chess, the numbers start from bottom but in code, is represented
+/// from bottom
+let getSquare (move: string) =
+    let col = int (move[0] - 'a')
+    let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
+    { col = col; row = row }
+
+/// Check if the move is valid
+let validateMove (move1: string) (move2: string) (board: ChessBoard) =
+    match isValidMove move1 move2 with
     | true ->
         let fromLoc = getSquare move1
         let toLoc = getSquare move2
@@ -211,8 +177,8 @@ let checkMove (move1: string) (move2: string) (board: Board) =
         // Filter out piece on the board, only applicable for pawn
         let moves =
             match piece with
-            | Piece.BlackPawn
-            | Piece.WhitePawn -> moves |> List.filter (fun loc -> board[loc.row][loc.col] = Piece.Blank)
+            | ChessPiece.BlackPawn
+            | ChessPiece.WhitePawn -> moves |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank)
             | _ -> moves
 
         match moves.Length with
@@ -224,7 +190,7 @@ let checkMove (move1: string) (move2: string) (board: Board) =
             true
     | false -> false
 
-// Function to parse the input string into a Command
+/// Parse the input string into a Command
 let parseInput (input: string) =
     // Make sure input is valid
     let trimmedInput = input.Trim().ToLower()
@@ -242,7 +208,9 @@ let parseInput (input: string) =
         | _ -> Invalid
     | _ -> Invalid
 
+/// Helper function to update the cells in the chessboard
 let updateCell loc piece board =
+    // If it reaches the loc to set, replace with piece, otherwise it copies the previous cell val
     let setVal r row c col cell =
         match r = row && c = col with
         | true -> piece
@@ -251,15 +219,33 @@ let updateCell loc piece board =
     board
     |> List.mapi (fun r rowList -> rowList |> List.mapi (fun c -> setVal r loc.row c loc.col))
 
-let movePiece (move1: string) (move2: string) (board: Board) =
-    let move1 = getSquare move1
-    let move2 = getSquare move2
+/// Move the piece from one location to another
+let movePiece (move1: Location) (move2: Location) (board: ChessBoard) =
     let piece = board[move1.row][move1.col]
-    board |> updateCell move1 Piece.Blank |> updateCell move2 piece
+    board |> updateCell move1 ChessPiece.Blank |> updateCell move2 piece
 
-// Main game loop
-let rec gameLoop (board: Board) =
-    printBoard board
+/// Print the pieces to char
+let pieceToChar (piece: ChessPiece) = piece |> int |> char
+
+/// Helper to print the state of the chessboard
+let printBoard (board: ChessBoard) =
+    Console.Write "\u001bc\x1b[3J"
+
+    printfn "   a b c d e f g h"
+    printfn "  ─────────────────"
+
+    board
+    |> List.iteri (fun i row ->
+        printf $"%d{8 - i}| " // Print the left most column for the row number
+        row |> List.iter (fun piece -> printf $"%c{pieceToChar piece} ") // Print the whole row
+        printfn "") // Followed by newline
+
+    printfn "  ─────────────────"
+    printfn "   a b c d e f g h"
+
+/// Main game loop
+let rec gameLoop (board: ChessBoard) =
+    board |> printBoard
     printf "\nEnter move (e.g. 'e2 e4') or 'quit' to exit: "
 
     let rec restart board =
@@ -273,7 +259,7 @@ let rec gameLoop (board: Board) =
     let command =
         match command with
         | ChessMove(move1, move2) ->
-            match board |> checkMove move1 move2 with
+            match board |> validateMove move1 move2 with
             | true -> ChessMove(move1, move2)
             | false -> Invalid
         | _ -> command
@@ -286,10 +272,38 @@ let rec gameLoop (board: Board) =
         board |> restart
     | Castle castle -> board |> restart
     | ChessMove(move1, move2) ->
-        let board = board |> movePiece move1 move2
+        let board = board |> movePiece (getSquare move1) (getSquare move2)
         board |> restart
 
+/// Init the chess board
+let initBoard =
+    let row = List.init 8 (fun _ -> ChessPiece.Blank)
+    let blackPawns = List.init 8 (fun _ -> ChessPiece.BlackPawn)
+    let whitePawns = List.init 8 (fun _ -> ChessPiece.WhitePawn)
 
-// Start the game
+    [ [ ChessPiece.BlackRook
+        ChessPiece.BlackKnight
+        ChessPiece.BlackBishop
+        ChessPiece.BlackQueen
+        ChessPiece.BlackKing
+        ChessPiece.BlackBishop
+        ChessPiece.BlackKnight
+        ChessPiece.BlackRook ]
+      blackPawns
+      row
+      row
+      row
+      row
+      whitePawns
+      [ ChessPiece.WhiteRook
+        ChessPiece.WhiteKnight
+        ChessPiece.WhiteBishop
+        ChessPiece.WhiteQueen
+        ChessPiece.WhiteKing
+        ChessPiece.WhiteBishop
+        ChessPiece.WhiteKnight
+        ChessPiece.WhiteRook ] ]
+
+/// Start the game
 let board = initBoard
 board |> gameLoop
