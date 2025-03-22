@@ -208,6 +208,13 @@ let checkMove (move1: string) (move2: string) (board: Board) =
         let piece = board[fromLoc.row][fromLoc.col]
         let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
 
+        // Filter out piece on the board, only applicable for pawn
+        let moves =
+            match piece with
+            | Piece.BlackPawn
+            | Piece.WhitePawn -> moves |> List.filter (fun loc -> board[loc.row][loc.col] = Piece.Blank)
+            | _ -> moves
+
         match moves.Length with
         | 0 ->
             printfn "No valid moves."
