@@ -30,6 +30,7 @@ type Command =
     | ChessMove of string * string
     | Castle of string
     | Invalid
+
 // Print the pieces to char
 let pieceToChar (piece: Piece) = piece |> int |> char
 
@@ -73,47 +74,16 @@ let printBoard (board: Board) =
 
     board
     |> List.iteri (fun i row ->
-        printf "%d| " (8 - i) // Print the left most column for the row number
-        row |> List.iter (fun piece -> printf "%c " (pieceToChar piece)) // Print the whole row
+        printf $"%d{8 - i}| " // Print the left most column for the row number
+        row |> List.iter (fun piece -> printf $"%c{pieceToChar piece} ") // Print the whole row
         printfn "") // Followed by newline
 
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
-// Check if moves are valid
-let validateMove (move1: string) (move2: string) =
-
-    // NOTE: It does not consider chess pieces yet
-    let isValidSquare (square: string) =
-        square.Length = 2
-        && square.[0] >= 'a'
-        && square.[0] <= 'h'
-        && square.[1] >= '1'
-        && square.[1] <= '8'
-
-    move1 <> move2 && isValidSquare move1 && isValidSquare move2
-
-// Function to parse the input string into a Command
-let parseInput (input: string) =
-    // Make sure input is valid
-    let trimmedInput = input.Trim().ToLower()
-
-    match trimmedInput with
-    | "q"
-    | "quit" -> Quit
-    | "0-0-0"
-    | "0-0" -> Castle trimmedInput
-    | input when input.Contains " " ->
-        let parts = input.Split ' '
-
-        match parts.Length with
-        | 2 -> ChessMove(parts.[0], parts.[1])
-        | _ -> Invalid
-    | _ -> Invalid
-
 let getSquare (move: string) =
-    let col = int (move.[0] - 'a')
-    let row = 7 - int (move.[1] - '1') // Flip the board upside down for array indexing
+    let col = int (move[0] - 'a')
+    let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
     { col = col; row = row }
 
 let isValidPosition loc =
@@ -200,83 +170,119 @@ let generateQueenMove (loc: Location) =
     generateBishopMove loc @ generateRookMove loc
 
 let generateMoves (piece: Piece) (loc: Location) =
-    let moves =
-        match piece with
-        | Piece.BlackPawn -> generatePawnMove loc Down
-        | Piece.WhitePawn -> generatePawnMove loc Up
-        | Piece.BlackRook
-        | Piece.WhiteRook -> generateRookMove loc
-        | Piece.BlackKnight
-        | Piece.WhiteKnight -> generateKnightMove loc
-        | Piece.BlackBishop
-        | Piece.WhiteBishop -> generateBishopMove loc
-        | Piece.BlackQueen
-        | Piece.WhiteQueen -> generateQueenMove loc
-        | Piece.BlackKing
-        | Piece.WhiteKing -> generateKingMove loc
-        | _ -> []
+    match piece with
+    | Piece.BlackPawn -> generatePawnMove loc Down
+    | Piece.WhitePawn -> generatePawnMove loc Up
+    | Piece.BlackRook
+    | Piece.WhiteRook -> generateRookMove loc
+    | Piece.BlackKnight
+    | Piece.WhiteKnight -> generateKnightMove loc
+    | Piece.BlackBishop
+    | Piece.WhiteBishop -> generateBishopMove loc
+    | Piece.BlackQueen
+    | Piece.WhiteQueen -> generateQueenMove loc
+    | Piece.BlackKing
+    | Piece.WhiteKing -> generateKingMove loc
+    | _ -> []
 
-    // printfn "%A" moves
-    moves
+// Check if moves are within the board
+let isMoveInBoard (move1: string) (move2: string) =
 
+    // NOTE: It does not consider chess pieces yet
+    let isValidSquare (square: string) =
+        square.Length = 2
+        && square[0] >= 'a'
+        && square[0] <= 'h'
+        && square[1] >= '1'
+        && square[1] <= '8'
+
+    move1 <> move2 && isValidSquare move1 && isValidSquare move2
 
 // Check if the move is valid
 let checkMove (move1: string) (move2: string) (board: Board) =
-    let fromLoc = getSquare move1
-    let toLoc = getSquare move2
+    match isMoveInBoard move1 move2 with
+    | true ->
+        let fromLoc = getSquare move1
+        let toLoc = getSquare move2
 
-    // printfn
-    // "moving %c to %c from %A %A"
-    // (pieceToChar board.[fromLoc.row].[fromLoc.col])
-    // (pieceToChar board.[toLoc.row].[toLoc.col])
-    // fromLoc
-    // toLoc
+        let piece = board[fromLoc.row][fromLoc.col]
+        let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
 
-    let piece = board.[fromLoc.row].[fromLoc.col]
-    let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
+        match moves.Length with
+        | 0 ->
+            printfn "No valid moves."
+            false
+        | _ ->
+            printfn $"Moving %A{piece} from %s{move1} to %s{move2}"
+            true
+    | false -> false
 
-    match moves.Length with
-    | 0 ->
-        printfn "No valid moves."
-        false
-    | _ ->
-        printfn "Valid move."
-        true
+// Function to parse the input string into a Command
+let parseInput (input: string) =
+    // Make sure input is valid
+    let trimmedInput = input.Trim().ToLower()
 
+    match trimmedInput with
+    | "q"
+    | "quit" -> Quit
+    | "0-0-0"
+    | "0-0" -> Castle trimmedInput
+    | input when input.Contains " " ->
+        let parts = input.Split ' '
 
+        match parts.Length with
+        | 2 -> ChessMove(parts[0], parts[1])
+        | _ -> Invalid
+    | _ -> Invalid
 
-let processInput (input: string) (board: Board) =
-    let parsed = parseInput input
+let updateCell loc piece board =
+    let setVal r row c col cell =
+        match r = row && c = col with
+        | true -> piece
+        | false -> cell
 
-    match parsed with
-    | Quit -> printfn "Thank you for playing. Press enter to continue."
-    | ChessMove(move1, move2) ->
-        match validateMove move1 move2 with
-        | true ->
-            // TODO: Check board state here
-            match checkMove move1 move2 board with
-            | true -> printfn "move: %s %s" move1 move2
-            | false -> printfn "Invalid input, please try again."
-        | false -> printfn "Invalid input, please try again."
-    | Castle castle -> printfn "castle: %s" castle
-    | Invalid -> printfn "Invalid input, please try again."
+    board
+    |> List.mapi (fun r rowList -> rowList |> List.mapi (fun c -> setVal r loc.row c loc.col))
 
-    Console.ReadLine() |> ignore
-
-    parsed
-
+let movePiece (move1: string) (move2: string) (board: Board) =
+    let move1 = getSquare move1
+    let move2 = getSquare move2
+    let piece = board[move1.row][move1.col]
+    board |> updateCell move1 Piece.Blank |> updateCell move2 piece
 
 // Main game loop
 let rec gameLoop (board: Board) =
     printBoard board
     printf "\nEnter move (e.g. 'e2 e4') or 'quit' to exit: "
 
-    let input = Console.ReadLine()
+    let rec restart board =
+        Console.ReadLine() |> ignore
+        board |> gameLoop
 
-    match processInput input board with
-    | Quit -> ()
-    | _ -> gameLoop board
+    let input = Console.ReadLine()
+    let command = parseInput input
+
+    // Validate moves
+    let command =
+        match command with
+        | ChessMove(move1, move2) ->
+            match board |> checkMove move1 move2 with
+            | true -> ChessMove(move1, move2)
+            | false -> Invalid
+        | _ -> command
+
+    // Proceed with moves and update board
+    match command with
+    | Quit -> printfn "Thank you for playing. Press enter to continue."
+    | Invalid ->
+        printfn "Invalid input, please try again."
+        board |> restart
+    | Castle castle -> board |> restart
+    | ChessMove(move1, move2) ->
+        let board = board |> movePiece move1 move2
+        board |> restart
+
 
 // Start the game
 let board = initBoard
-gameLoop board
+board |> gameLoop
