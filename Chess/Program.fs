@@ -258,6 +258,7 @@ let updateCell loc piece board =
 
 /// Move the piece from one location to another
 let movePiece (piece: ChessPiece) (move1: Location) (move2: Location) (board: ChessBoard) =
+    // TODO: Check if move2 is not occupied
     board |> updateCell move1 ChessPiece.Blank |> updateCell move2 piece
 
 /// Print the pieces to char
@@ -279,15 +280,20 @@ let printBoard (board: ChessBoard) =
     printfn "  ─────────────────"
     printfn "   a b c d e f g h"
 
+/// Switch turn
 let switchTurn turn =
     match turn with
     | Black -> White
     | White -> Black
 
+/// Check if occupied space is a blank space
+/// Check if Pawn has promotion or not
 let hasPromotion piece dest =
+    let lastRow = dest.row = 0 || dest.row = 8
+
     match piece with
     | ChessPiece.WhitePawn
-    | ChessPiece.BlackPawn -> true
+    | ChessPiece.BlackPawn -> lastRow
     | _ -> false
 
 let rec promotePawn turn =
@@ -356,6 +362,9 @@ let rec gameLoop (state: State) =
         state |> restart
     | Castle castle -> state |> restart
     | ChessMove(move1, move2) ->
+        // TODO: Check if moving to is occupied
+
+
         // Pawn promotion
         let start = getSquare move1
         let piece = state.board[start.row][start.col]
@@ -412,14 +421,23 @@ let initState =
     { board = board; turn = White }
 
 /// Start the game
-let state = initState
-state |> gameLoop
+let game () =
+    printfn "AAA"
+    let state = initState
+    state |> gameLoop
 
 // TODO: Make this as a test
-// For testing pawn promotion
-// let newState =
-//     { board =
-//         updateCell (getSquare "a8") ChessPiece.Blank state.board
-//         |> updateCell (getSquare "a7") ChessPiece.WhitePawn
-//       turn = White }
-// newState |> gameLoop
+/// For testing pawn promotion
+let testPawnPromotion () =
+    let state = initState
+
+    let newState =
+        { board =
+            updateCell (getSquare "a8") ChessPiece.Blank state.board
+            |> updateCell (getSquare "a7") ChessPiece.WhitePawn
+          turn = White }
+
+    newState |> gameLoop
+
+game ()
+// testPawnPromotion
