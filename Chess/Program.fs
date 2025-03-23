@@ -389,7 +389,7 @@ let rec gameLoop (state: State) =
             state |> restart
 
 /// Init the chess board
-let initState =
+let initState () =
     let row = List.init 8 (fun _ -> ChessPiece.Blank)
     let blackPawns = List.init 8 (fun _ -> ChessPiece.BlackPawn)
     let whitePawns = List.init 8 (fun _ -> ChessPiece.WhitePawn)
@@ -422,14 +422,13 @@ let initState =
 
 /// Start the game
 let game () =
-    printfn "AAA"
-    let state = initState
+    let state = initState ()
     state |> gameLoop
 
 // TODO: Make this as a test
 /// For testing pawn promotion
 let testPawnPromotion () =
-    let state = initState
+    let state = initState ()
 
     let newState =
         { board =
