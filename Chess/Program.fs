@@ -49,25 +49,39 @@ let isLocationInsideBoard loc =
     loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
 /// Generate moves for Pawn based on the direction it is facing
-let generatePawnMove (loc: Location) (dir: PawnDirection) =
+let generatePawnMove (board: ChessBoard) (loc: Location) (dir: PawnDirection) =
     //TODO: Generate en passe moves
+    //TODO: Remove moves if pieces blocking
+    //TODO: Generate diagonal moves if opponent pieces
     let offset =
         match dir with
         | Up -> -1
         | Down -> 1
 
+    let hasPiece loc =
+        board[loc.row][loc.col] <> ChessPiece.Blank
+
+    // Determine if pawn can jump 2 steps in front, if pieces blocking, it cannot jump in front
     let start =
         match loc with
         | { row = 1 }
         | { row = 6 } ->
-            [ { col = loc.col
-                row = loc.row + offset + offset } ]
+            let front =
+                { col = loc.col
+                  row = loc.row + offset }
+
+            match hasPiece front with
+            | true -> []
+            | false ->
+                [ { col = loc.col
+                    row = loc.row + offset + offset } ]
         | _ -> []
 
     [ { col = loc.col
         row = loc.row + offset } ]
     @ start
     |> List.filter isLocationInsideBoard
+    |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank) // Only for pawn, filter out moves if pieces blocking
 
 /// Generate moves for Knight
 let generateKnightMove (loc: Location) =
@@ -138,10 +152,10 @@ let generateQueenMove (loc: Location) =
     generateBishopMove loc @ generateRookMove loc
 
 /// Generate moves based on the different pieces
-let generateMoves (piece: ChessPiece) (loc: Location) =
+let generateMoves (board: ChessBoard) (piece: ChessPiece) (loc: Location) =
     match piece with
-    | ChessPiece.BlackPawn -> generatePawnMove loc Down
-    | ChessPiece.WhitePawn -> generatePawnMove loc Up
+    | ChessPiece.BlackPawn -> generatePawnMove board loc Down
+    | ChessPiece.WhitePawn -> generatePawnMove board loc Up
     | ChessPiece.BlackRook
     | ChessPiece.WhiteRook -> generateRookMove loc
     | ChessPiece.BlackKnight
@@ -169,6 +183,9 @@ let getSquare (move: string) =
 /// Check if the turn is correct and the moves generated is valid
 let validateMove (move1: Location) (move2: Location) (state: State) =
     match isValidMove move1 move2 with
+    | false ->
+        printf "Move was invalid. Please try another move."
+        false
     | true ->
         let piece = state.board[move1.row][move1.col]
 
@@ -190,28 +207,23 @@ let validateMove (move1: Location) (move2: Location) (state: State) =
             | _ -> false
 
         match isCorrectTurn with
+        | false ->
+            printf "Incorrect turn."
+            false
         | true ->
-            let moves = generateMoves piece move1 |> List.filter (fun loc -> loc = move2)
-
-            // Filter out piece on the board, only applicable for pawn
+            // Get all the moves and only filter by the end location
             let moves =
-                match piece with
-                | ChessPiece.BlackPawn
-                | ChessPiece.WhitePawn ->
-                    moves
-                    |> List.filter (fun loc -> state.board[loc.row][loc.col] = ChessPiece.Blank)
-                | _ -> moves
+                generateMoves state.board piece move1 |> List.filter (fun loc -> loc = move2)
+
+
+
 
             // If there are no moves generated, then it is not a valid move
             match moves.Length with
             | 0 ->
-                printfn "No valid moves."
+                printf "Not a valid move for the piece."
                 false
             | _ -> true
-        | false ->
-            printfn "Incorrect turn."
-            false
-    | false -> false
 
 /// Parse the input string into a Command
 let parseInput (input: string) =
@@ -328,45 +340,44 @@ let rec gameLoop (state: State) =
     let input = Console.ReadLine()
     let command = parseInput input
 
-    // Validate input
-    let command =
-        match command with
-        | ChessMove(move1, move2) ->
-            match state |> validateMove move1 move2 with
-            | true -> ChessMove(move1, move2)
-            | false -> Invalid
-        | _ -> command
+    let invalidInput () =
+        // printfn "Invalid input, please try again."
+        Console.ReadLine() |> ignore
+        state |> restart
 
     // Proceed with moves and update board
     match command with
     | Quit -> printfn "Thank you for playing. Press enter to continue."
-    | Invalid ->
-        printfn "Invalid input, please try again."
-        state |> restart
+    | Invalid -> invalidInput ()
     | Castle castle -> state |> restart
     | ChessMove(move1, move2) ->
-        // TODO: Check if moving to is occupied
-        // Pawn promotion
-        let piece = state.board[move1.row][move1.col]
+        // Validate movements
+        let validMovements = state |> validateMove move1 move2
 
-        match hasPromotion piece move2 with
+        match validMovements with
+        | false -> invalidInput ()
         | true ->
-            let piece = promotePawn state.turn
+            // Pawn promotion
+            let piece = state.board[move1.row][move1.col]
+            let hasPawnPromoted = hasPromotion piece move2
 
-            let state =
-                { board = state.board |> movePiece piece move1 move2
-                  turn = switchTurn state.turn }
+            match hasPawnPromoted with
+            | true ->
+                let piece = promotePawn state.turn
 
-            state |> restart
-        | false ->
-            let start = move1
-            let piece = state.board[start.row][start.col]
+                let state =
+                    { board = state.board |> movePiece piece move1 move2
+                      turn = switchTurn state.turn }
 
-            let state =
-                { board = state.board |> movePiece piece start move2
-                  turn = switchTurn state.turn }
+                state |> restart
+            | false ->
+                let piece = state.board[move1.row][move1.col]
 
-            state |> restart
+                let state =
+                    { board = state.board |> movePiece piece move1 move2
+                      turn = switchTurn state.turn }
+
+                state |> restart
 
 /// Init the chess board
 let initState () =
