@@ -40,7 +40,7 @@ type Location = { col: int; row: int }
 /// Possible states of the game determined by inputs
 type Command =
     | Quit
-    | ChessMove of string * string
+    | ChessMove of Location * Location
     | Castle of string
     | Invalid
 
@@ -155,17 +155,8 @@ let generateMoves (piece: ChessPiece) (loc: Location) =
     | _ -> []
 
 /// Check if moves is valid and within the chessboard
-let isValidMove (move1: string) (move2: string) =
-
-    // NOTE: It does not consider chess pieces yet
-    let isValidSquare (square: string) =
-        square.Length = 2
-        && square[0] >= 'a'
-        && square[0] <= 'h'
-        && square[1] >= '1'
-        && square[1] <= '8'
-
-    move1 <> move2 && isValidSquare move1 && isValidSquare move2
+let isValidMove (move1: Location) (move2: Location) =
+    move1 <> move2 && isLocationInsideBoard move1 && isLocationInsideBoard move2
 
 /// Get the location from the string representation, i.e. a1 -> {col = 0; row = 7 },
 /// Note: rows are inverted, because in chess, the numbers start from bottom but in code, is represented
@@ -175,14 +166,11 @@ let getSquare (move: string) =
     let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
     { col = col; row = row }
 
-/// Check if the move is valid
-let validateMove (move1: string) (move2: string) (state: State) =
+/// Check if the turn is correct and the moves generated is valid
+let validateMove (move1: Location) (move2: Location) (state: State) =
     match isValidMove move1 move2 with
     | true ->
-        let fromLoc = getSquare move1
-        let toLoc = getSquare move2
-
-        let piece = state.board[fromLoc.row][fromLoc.col]
+        let piece = state.board[move1.row][move1.col]
 
         // Check pieces to move corresponds to turn
         let isCorrectTurn =
@@ -203,7 +191,7 @@ let validateMove (move1: string) (move2: string) (state: State) =
 
         match isCorrectTurn with
         | true ->
-            let moves = generateMoves piece fromLoc |> List.filter (fun loc -> loc = toLoc)
+            let moves = generateMoves piece move1 |> List.filter (fun loc -> loc = move2)
 
             // Filter out piece on the board, only applicable for pawn
             let moves =
@@ -219,9 +207,7 @@ let validateMove (move1: string) (move2: string) (state: State) =
             | 0 ->
                 printfn "No valid moves."
                 false
-            | _ ->
-                printfn $"Moving %A{piece} from %s{move1} to %s{move2}"
-                true
+            | _ -> true
         | false ->
             printfn "Incorrect turn."
             false
@@ -241,7 +227,7 @@ let parseInput (input: string) =
         let parts = input.Split ' '
 
         match parts.Length with
-        | 2 -> ChessMove(parts[0], parts[1])
+        | 2 -> ChessMove(getSquare parts[0], getSquare parts[1])
         | _ -> Invalid
     | _ -> Invalid
 
@@ -286,7 +272,6 @@ let switchTurn turn =
     | Black -> White
     | White -> Black
 
-/// Check if occupied space is a blank space
 /// Check if Pawn has promotion or not
 let hasPromotion piece dest =
     let lastRow = dest.row = 0 || dest.row = 8
@@ -338,14 +323,12 @@ let rec gameLoop (state: State) =
     printfn $"\nIt is currently %A{state.turn}'s turn."
     printf "Enter move (e.g. 'e2 e4') or 'quit' to exit: "
 
-    let restart state =
-        Console.ReadLine() |> ignore
-        state |> gameLoop
+    let restart state = state |> gameLoop
 
     let input = Console.ReadLine()
     let command = parseInput input
 
-    // Validate moves
+    // Validate input
     let command =
         match command with
         | ChessMove(move1, move2) ->
@@ -363,27 +346,24 @@ let rec gameLoop (state: State) =
     | Castle castle -> state |> restart
     | ChessMove(move1, move2) ->
         // TODO: Check if moving to is occupied
-
-
         // Pawn promotion
-        let start = getSquare move1
-        let piece = state.board[start.row][start.col]
+        let piece = state.board[move1.row][move1.col]
 
-        match hasPromotion piece (getSquare move2) with
+        match hasPromotion piece move2 with
         | true ->
             let piece = promotePawn state.turn
 
             let state =
-                { board = state.board |> movePiece piece (getSquare move1) (getSquare move2)
+                { board = state.board |> movePiece piece move1 move2
                   turn = switchTurn state.turn }
 
             state |> restart
         | false ->
-            let start = getSquare move1
+            let start = move1
             let piece = state.board[start.row][start.col]
 
             let state =
-                { board = state.board |> movePiece piece start (getSquare move2)
+                { board = state.board |> movePiece piece start move2
                   turn = switchTurn state.turn }
 
             state |> restart
