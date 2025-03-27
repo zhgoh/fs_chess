@@ -49,10 +49,8 @@ let isLocationInsideBoard loc =
     loc.row >= 0 && loc.row < 8 && loc.col >= 0 && loc.col < 8
 
 /// Generate moves for Pawn based on the direction it is facing
-let generatePawnMove (board: ChessBoard) (loc: Location) (dir: PawnDirection) =
+let generatePawnMove (board: ChessBoard) (loc: Location) (piece: ChessPiece) (dir: PawnDirection) =
     //TODO: Generate en passe moves
-    //TODO: Remove moves if pieces blocking
-    //TODO: Generate diagonal moves if opponent pieces
     let offset =
         match dir with
         | Up -> -1
@@ -77,11 +75,44 @@ let generatePawnMove (board: ChessBoard) (loc: Location) (dir: PawnDirection) =
                     row = loc.row + offset + offset } ]
         | _ -> []
 
-    [ { col = loc.col
-        row = loc.row + offset } ]
-    @ start
-    |> List.filter isLocationInsideBoard
-    |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank) // Only for pawn, filter out moves if pieces blocking
+    let res =
+        [ { col = loc.col
+            row = loc.row + offset } ]
+        @ start
+        |> List.filter isLocationInsideBoard
+        |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank) // Only for pawn, filter out moves if pieces blocking
+
+    let diagonals =
+        [ { col = loc.col - 1
+            row = loc.row + offset }
+          { col = loc.col + 1
+            row = loc.row + offset } ]
+        |> List.filter isLocationInsideBoard
+
+    let opponents =
+        match piece with
+        | ChessPiece.BlackPawn ->
+
+            [ ChessPiece.WhitePawn
+              ChessPiece.WhiteRook
+              ChessPiece.WhiteKnight
+              ChessPiece.WhiteBishop
+              ChessPiece.WhiteQueen
+              ChessPiece.WhiteKing ]
+        | ChessPiece.WhitePawn ->
+            [ ChessPiece.BlackPawn
+              ChessPiece.BlackRook
+              ChessPiece.BlackKnight
+              ChessPiece.BlackBishop
+              ChessPiece.BlackQueen
+              ChessPiece.BlackKing ]
+        | _ -> []
+
+    let diagonals =
+        diagonals
+        |> List.filter (fun loc -> opponents |> List.contains (board[loc.row][loc.col]))
+
+    res @ diagonals
 
 /// Generate moves for Knight
 let generateKnightMove (loc: Location) =
@@ -154,8 +185,8 @@ let generateQueenMove (loc: Location) =
 /// Generate moves based on the different pieces
 let generateMoves (board: ChessBoard) (piece: ChessPiece) (loc: Location) =
     match piece with
-    | ChessPiece.BlackPawn -> generatePawnMove board loc Down
-    | ChessPiece.WhitePawn -> generatePawnMove board loc Up
+    | ChessPiece.BlackPawn -> generatePawnMove board loc ChessPiece.BlackPawn Down
+    | ChessPiece.WhitePawn -> generatePawnMove board loc ChessPiece.WhitePawn Up
     | ChessPiece.BlackRook
     | ChessPiece.WhiteRook -> generateRookMove loc
     | ChessPiece.BlackKnight
@@ -178,6 +209,7 @@ let isValidMove (move1: Location) (move2: Location) =
 let getSquare (move: string) =
     let col = int (move[0] - 'a')
     let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
+    printfn $"Col: %d{col} Row: %d{row}"
     { col = col; row = row }
 
 /// Check if the turn is correct and the moves generated is valid
@@ -214,9 +246,6 @@ let validateMove (move1: Location) (move2: Location) (state: State) =
             // Get all the moves and only filter by the end location
             let moves =
                 generateMoves state.board piece move1 |> List.filter (fun loc -> loc = move2)
-
-
-
 
             // If there are no moves generated, then it is not a valid move
             match moves.Length with
