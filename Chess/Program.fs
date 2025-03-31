@@ -29,7 +29,7 @@ type Turn =
     | Black
 
 /// Alias for the data in the game board
-type ChessBoard = list<list<ChessPiece>>
+type ChessBoard = ChessPiece[,]
 
 /// Game state to store board and turn info
 type State = { board: ChessBoard; turn: Turn }
@@ -57,7 +57,7 @@ let generatePawnMove (board: ChessBoard) (loc: Location) (piece: ChessPiece) (di
         | Down -> 1
 
     let hasPiece loc =
-        board[loc.row][loc.col] <> ChessPiece.Blank
+        board[loc.row, loc.col] <> ChessPiece.Blank
 
     // Determine if pawn can jump 2 steps in front, if pieces blocking, it cannot jump in front
     let start =
@@ -80,7 +80,7 @@ let generatePawnMove (board: ChessBoard) (loc: Location) (piece: ChessPiece) (di
             row = loc.row + offset } ]
         @ start
         |> List.filter isLocationInsideBoard
-        |> List.filter (fun loc -> board[loc.row][loc.col] = ChessPiece.Blank) // Only for pawn, filter out moves if pieces blocking
+        |> List.filter (fun loc -> board[loc.row, loc.col] = ChessPiece.Blank) // Only for pawn, filter out moves if pieces blocking
 
     let diagonals =
         [ { col = loc.col - 1
@@ -110,7 +110,7 @@ let generatePawnMove (board: ChessBoard) (loc: Location) (piece: ChessPiece) (di
 
     let diagonals =
         diagonals
-        |> List.filter (fun loc -> opponents |> List.contains (board[loc.row][loc.col]))
+        |> List.filter (fun loc -> opponents |> List.contains (board[loc.row, loc.col]))
 
     res @ diagonals
 
@@ -209,7 +209,7 @@ let isValidMove (move1: Location) (move2: Location) =
 let getSquare (move: string) =
     let col = int (move[0] - 'a')
     let row = 7 - int (move[1] - '1') // Flip the board upside down for array indexing
-    printfn $"Col: %d{col} Row: %d{row}"
+    // printfn $"Col: %d{col} Row: %d{row}"
     { col = col; row = row }
 
 /// Check if the turn is correct and the moves generated is valid
@@ -219,7 +219,7 @@ let validateMove (move1: Location) (move2: Location) (state: State) =
         printf "Move was invalid. Please try another move."
         false
     | true ->
-        let piece = state.board[move1.row][move1.col]
+        let piece = state.board[move1.row, move1.col]
 
         // Check pieces to move corresponds to turn
         let isCorrectTurn =
@@ -273,20 +273,16 @@ let parseInput (input: string) =
     | _ -> Invalid
 
 /// Helper function to update the cells in the chessboard
-let updateCell loc piece board =
+let placePiece loc piece board =
     // If it reaches the loc to set, replace with piece, otherwise it copies the previous cell val
-    let setVal r row c col cell =
-        match r = row && c = col with
-        | true -> piece
-        | false -> cell
-
-    board
-    |> List.mapi (fun r rowList -> rowList |> List.mapi (fun c -> setVal r loc.row c loc.col))
+    let newBoard = Array2D.copy board
+    newBoard[loc.row, loc.col] <- piece
+    newBoard
 
 /// Move the piece from one location to another
 let movePiece (piece: ChessPiece) (move1: Location) (move2: Location) (board: ChessBoard) =
     // TODO: Check if move2 is not occupied
-    board |> updateCell move1 ChessPiece.Blank |> updateCell move2 piece
+    board |> placePiece move1 ChessPiece.Blank |> placePiece move2 piece
 
 /// Print the pieces to char
 let pieceToChar (piece: ChessPiece) = piece |> int |> char
@@ -294,18 +290,38 @@ let pieceToChar (piece: ChessPiece) = piece |> int |> char
 /// Helper to print the state of the chessboard
 let printBoard (board: ChessBoard) =
     Console.Write "\u001bc\x1b[3J"
+    let boardCol = Array2D.length2 board - 1
+    let blankSpacesWidth = boardCol * 2 + 2
 
-    printfn "   a b c d e f g h"
-    printfn "  ─────────────────"
+    // Print top column headers (a, b, c, ...)
+    printf "   " // Space for row numbers
+    [ 0..boardCol ] |> Seq.iter (fun j -> printf $"%c{char (int 'a' + j)} ")
 
-    board
-    |> List.iteri (fun i row ->
-        printf $"%d{8 - i}| " // Print the left most column for the row number
-        row |> List.iter (fun piece -> printf $"%c{pieceToChar piece} ") // Print the whole row
-        printfn "") // Followed by newline
+    // Print blank lines
+    printf "\n  "
 
-    printfn "  ─────────────────"
-    printfn "   a b c d e f g h"
+    [ 0..blankSpacesWidth ] |> Seq.iter (fun _ -> printf "─")
+
+    printfn ""
+
+    // Print rows with numbers (8, 7, 6, ...)
+    [ 0 .. Array2D.length1 board - 1 ]
+    |> Seq.iter (fun i ->
+        printf $"%d{Array2D.length1 board - i}| " // Row number (reversed for chess)
+
+        [ 0..boardCol ]
+        |> Seq.map (fun j -> board.[i, j])
+        |> Seq.iter (fun c -> printf $"%c{pieceToChar c} ")
+
+        printfn "")
+
+    // Print blank lines
+    printf "  " // Space for Blank lines
+    [ 0..blankSpacesWidth ] |> Seq.iter (fun _ -> printf "─")
+
+    // Print A to Z
+    printf "\n   "
+    [ 0..boardCol ] |> Seq.iter (fun j -> printf $"%c{char (int 'a' + j)} ")
 
 /// Switch turn
 let switchTurn turn =
@@ -387,7 +403,7 @@ let rec gameLoop (state: State) =
         | false -> invalidInput ()
         | true ->
             // Pawn promotion
-            let piece = state.board[move1.row][move1.col]
+            let piece = state.board[move1.row, move1.col]
             let hasPawnPromoted = hasPromotion piece move2
 
             match hasPawnPromoted with
@@ -400,7 +416,7 @@ let rec gameLoop (state: State) =
 
                 state |> restart
             | false ->
-                let piece = state.board[move1.row][move1.col]
+                let piece = state.board[move1.row, move1.col]
 
                 let state =
                     { board = state.board |> movePiece piece move1 move2
@@ -410,33 +426,42 @@ let rec gameLoop (state: State) =
 
 /// Init the chess board
 let initState () =
-    let row = List.init 8 (fun _ -> ChessPiece.Blank)
-    let blackPawns = List.init 8 (fun _ -> ChessPiece.BlackPawn)
-    let whitePawns = List.init 8 (fun _ -> ChessPiece.WhitePawn)
-
     let board =
-        [ [ ChessPiece.BlackRook
-            ChessPiece.BlackKnight
-            ChessPiece.BlackBishop
-            ChessPiece.BlackQueen
-            ChessPiece.BlackKing
-            ChessPiece.BlackBishop
-            ChessPiece.BlackKnight
-            ChessPiece.BlackRook ]
-          blackPawns
-          row
-          row
-          row
-          row
-          whitePawns
-          [ ChessPiece.WhiteRook
-            ChessPiece.WhiteKnight
-            ChessPiece.WhiteBishop
-            ChessPiece.WhiteQueen
-            ChessPiece.WhiteKing
-            ChessPiece.WhiteBishop
-            ChessPiece.WhiteKnight
-            ChessPiece.WhiteRook ] ]
+        Array2D.create 8 8 ChessPiece.Blank
+        |> placePiece (getSquare "a7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "b7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "c7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "d7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "e7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "f7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "g7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "h7") ChessPiece.BlackPawn
+        |> placePiece (getSquare "a8") ChessPiece.BlackRook
+        |> placePiece (getSquare "b8") ChessPiece.BlackKnight
+        |> placePiece (getSquare "c8") ChessPiece.BlackBishop
+        |> placePiece (getSquare "d8") ChessPiece.BlackQueen
+        |> placePiece (getSquare "e8") ChessPiece.BlackKing
+        |> placePiece (getSquare "f8") ChessPiece.BlackBishop
+        |> placePiece (getSquare "g8") ChessPiece.BlackKnight
+        |> placePiece (getSquare "h8") ChessPiece.BlackRook
+
+        |> placePiece (getSquare "a2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "b2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "c2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "d2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "e2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "f2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "g2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "h2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "a1") ChessPiece.WhiteRook
+        |> placePiece (getSquare "b1") ChessPiece.WhiteKnight
+        |> placePiece (getSquare "c1") ChessPiece.WhiteBishop
+        |> placePiece (getSquare "d1") ChessPiece.WhiteQueen
+        |> placePiece (getSquare "e1") ChessPiece.WhiteKing
+        |> placePiece (getSquare "f1") ChessPiece.WhiteBishop
+        |> placePiece (getSquare "g1") ChessPiece.WhiteKnight
+        |> placePiece (getSquare "h1") ChessPiece.WhiteRook
+
 
     { board = board; turn = White }
 
@@ -452,8 +477,8 @@ let testPawnPromotion () =
 
     let newState =
         { board =
-            updateCell (getSquare "a8") ChessPiece.Blank state.board
-            |> updateCell (getSquare "a7") ChessPiece.WhitePawn
+            placePiece (getSquare "a8") ChessPiece.Blank state.board
+            |> placePiece (getSquare "a7") ChessPiece.WhitePawn
           turn = White }
 
     newState |> gameLoop
