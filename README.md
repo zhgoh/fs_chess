@@ -28,9 +28,17 @@ dotnet run --project Chess
 dotnet test
 ```
 
+## Features
+
+- Parse inputs and validation of moves
+- Piece moving
+- Display board and updating of board
+- Turn based
+- Pawn promotion
+- Capturing pieces
+
 ## TODO
 
-- Capturing pieces
 - En passe
 - Win condition
 - Castling
