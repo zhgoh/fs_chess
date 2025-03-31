@@ -18,35 +18,47 @@ let assertValid (expected: list<string>) (res: list<Location>) =
 
     expected |> List.iter (isValid res)
 
+/// Places a piece (represented as a ChessPiece) as the selected location
+let placePiece loc piece (board: ChessPiece[,]) =
+    // Create a copy of the board to maintain immutability
+    let newBoard = Array2D.copy board
+    newBoard[loc.row, loc.col] <- piece
+    newBoard
+
+
 [<Fact>]
 let ``Check pawn move`` () =
+    // Create empty board with only pawns
+    let emptyBoard = Array2D.create 8 8 ChessPiece.Blank
+    let board = emptyBoard |> placePiece (getSquare "a2") ChessPiece.WhitePawn
+
     // White pawns
     let expected = [ "a3"; "a4" ]
-    let res = generatePawnMove (getSquare "a2") Up
+    let res = generatePawnMove board (getSquare "a2") ChessPiece.WhitePawn Up
     assertValid expected res
 
     // Black pawns
     let expected = [ "a5"; "a6" ]
-    let res = generatePawnMove (getSquare "a7") Down
+    let res = generatePawnMove board (getSquare "a7") ChessPiece.BlackPawn Down
     assertValid expected res
 
     // Normal move up
     let expected = [ "a4" ]
-    let res = generatePawnMove (getSquare "a3") Up
+    let res = generatePawnMove board (getSquare "a3") ChessPiece.WhitePawn Up
     assertValid expected res
 
     // Normal move down
     let expected = [ "a1" ]
-    let res = generatePawnMove (getSquare "a2") Down
+    let res = generatePawnMove board (getSquare "a2") ChessPiece.BlackPawn Down
     assertValid expected res
 
     // Reached border
     let expected = []
-    let res = generatePawnMove (getSquare "a8") Up
+    let res = generatePawnMove board (getSquare "a8") ChessPiece.WhitePawn Up
     assertValid expected res
 
     let expected = []
-    let res = generatePawnMove (getSquare "a1") Down
+    let res = generatePawnMove board (getSquare "a1") ChessPiece.BlackPawn Down
     assertValid expected res
 
 [<Fact>]
@@ -341,3 +353,27 @@ let ``Check king move`` () =
     let expected = [ "c5"; "c6"; "d6"; "e6"; "e5"; "e4"; "d4"; "c4" ]
     let res = generateKingMove (getSquare "d5")
     assertValid expected res
+
+[<Fact>]
+let ``Check if pawn promotion works`` () =
+    // Black promote
+    let board =
+        Array2D.create 8 8 ChessPiece.Blank
+        |> placePiece (getSquare "a2") ChessPiece.BlackPawn
+
+    let loc = getSquare "a2"
+    let piece = board[loc.row, loc.col]
+    let dst = getSquare "a1"
+
+    Assert.True(hasPromotion piece dst)
+
+    // White promote
+    let board =
+        Array2D.create 8 8 ChessPiece.Blank
+        |> placePiece (getSquare "a7") ChessPiece.WhitePawn
+
+    let loc = getSquare "a7"
+    let piece = board[loc.row, loc.col]
+    let dst = getSquare "a8"
+
+    Assert.True(hasPromotion piece dst)
