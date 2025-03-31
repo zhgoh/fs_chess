@@ -281,7 +281,6 @@ let placePiece loc piece board =
 
 /// Move the piece from one location to another
 let movePiece (piece: ChessPiece) (move1: Location) (move2: Location) (board: ChessBoard) =
-    // TODO: Check if move2 is not occupied
     board |> placePiece move1 ChessPiece.Blank |> placePiece move2 piece
 
 /// Print the pieces to char
@@ -310,7 +309,7 @@ let printBoard (board: ChessBoard) =
         printf $"%d{Array2D.length1 board - i}| " // Row number (reversed for chess)
 
         [ 0..boardCol ]
-        |> Seq.map (fun j -> board.[i, j])
+        |> Seq.map (fun j -> board[i, j])
         |> Seq.iter (fun c -> printf $"%c{pieceToChar c} ")
 
         printfn "")
@@ -331,7 +330,7 @@ let switchTurn turn =
 
 /// Check if Pawn has promotion or not
 let hasPromotion piece dest =
-    let lastRow = dest.row = 0 || dest.row = 8
+    let lastRow = dest.row = 0 || dest.row = 7
 
     match piece with
     | ChessPiece.WhitePawn
@@ -470,18 +469,4 @@ let game () =
     let state = initState ()
     state |> gameLoop
 
-// TODO: Make this as a test
-/// For testing pawn promotion
-let testPawnPromotion () =
-    let state = initState ()
-
-    let newState =
-        { board =
-            placePiece (getSquare "a8") ChessPiece.Blank state.board
-            |> placePiece (getSquare "a7") ChessPiece.WhitePawn
-          turn = White }
-
-    newState |> gameLoop
-
 game ()
-// testPawnPromotion
