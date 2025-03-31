@@ -28,38 +28,83 @@ let placePiece loc piece (board: ChessPiece[,]) =
 
 [<Fact>]
 let ``Check pawn move`` () =
-    // Create empty board with only pawns
+    // Create empty board
     let emptyBoard = Array2D.create 8 8 ChessPiece.Blank
-    let board = emptyBoard |> placePiece (getSquare "a2") ChessPiece.WhitePawn
 
-    // White pawns
+    // White pawns first row
     let expected = [ "a3"; "a4" ]
+    let board = emptyBoard |> placePiece (getSquare "a2") ChessPiece.WhitePawn
     let res = generatePawnMove board (getSquare "a2") ChessPiece.WhitePawn Up
     assertValid expected res
 
-    // Black pawns
+    // Black pawns first row
     let expected = [ "a5"; "a6" ]
+    let board = emptyBoard |> placePiece (getSquare "a7") ChessPiece.BlackPawn
     let res = generatePawnMove board (getSquare "a7") ChessPiece.BlackPawn Down
     assertValid expected res
 
     // Normal move up
     let expected = [ "a4" ]
+    let board = emptyBoard |> placePiece (getSquare "a3") ChessPiece.WhitePawn
     let res = generatePawnMove board (getSquare "a3") ChessPiece.WhitePawn Up
     assertValid expected res
 
     // Normal move down
     let expected = [ "a1" ]
+    let board = emptyBoard |> placePiece (getSquare "a3") ChessPiece.BlackPawn
     let res = generatePawnMove board (getSquare "a2") ChessPiece.BlackPawn Down
     assertValid expected res
 
     // Reached border
     let expected = []
+    let board = emptyBoard |> placePiece (getSquare "a8") ChessPiece.WhitePawn
     let res = generatePawnMove board (getSquare "a8") ChessPiece.WhitePawn Up
     assertValid expected res
 
     let expected = []
+    let board = emptyBoard |> placePiece (getSquare "a1") ChessPiece.BlackPawn
     let res = generatePawnMove board (getSquare "a1") ChessPiece.BlackPawn Down
     assertValid expected res
+
+    // White pawns first row with enemy blocking
+    let expected = []
+
+    let board =
+        emptyBoard
+        |> placePiece (getSquare "a2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "a3") ChessPiece.BlackPawn
+
+    let res = generatePawnMove board (getSquare "a2") ChessPiece.WhitePawn Up
+    assertValid expected res
+
+[<Fact>]
+let ``Check pawn capture`` () =
+    // Create empty board
+    let emptyBoard = Array2D.create 8 8 ChessPiece.Blank
+
+    // White pawns first row with no enemy blocking
+    let expected = [ "a3"; "a4"; "b3" ]
+
+    let board =
+        emptyBoard
+        |> placePiece (getSquare "a2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "b3") ChessPiece.BlackPawn
+
+    let res = generatePawnMove board (getSquare "a2") ChessPiece.WhitePawn Up
+    assertValid expected res
+
+    // White pawns first row with enemy blocking
+    let expected = [ "b3" ]
+
+    let board =
+        emptyBoard
+        |> placePiece (getSquare "a2") ChessPiece.WhitePawn
+        |> placePiece (getSquare "b3") ChessPiece.BlackPawn
+        |> placePiece (getSquare "a3") ChessPiece.BlackPawn
+
+    let res = generatePawnMove board (getSquare "a2") ChessPiece.WhitePawn Up
+    assertValid expected res
+
 
 [<Fact>]
 let ``Check knight moves`` () =
