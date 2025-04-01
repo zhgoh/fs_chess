@@ -36,10 +36,9 @@ dotnet test
 - Turn based
 - Pawn promotion
 - Capturing pieces
+- En passant
 
 ## TODO
-
-- En passe
 - Win condition
 - Castling
 - More tests
