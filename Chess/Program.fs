@@ -50,8 +50,12 @@ type State =
 type Command =
     | Quit
     | ChessMove of Location * Location
-    | Castle of string
+    | Castle of CastlingSide
     | Invalid
+
+and CastlingSide =
+    | KingSide
+    | QueenSide
 
 /// Check if location is within the chessboard
 let isLocationInsideBoard loc =
@@ -300,8 +304,8 @@ let parseInput (input: string) =
     match trimmedInput with
     | "q"
     | "quit" -> Quit
-    | "0-0-0"
-    | "0-0" -> Castle trimmedInput
+    | "0-0-0" -> Castle QueenSide
+    | "0-0" -> Castle KingSide
     | input when input.Contains " " ->
         let parts = input.Split ' '
 
@@ -430,7 +434,10 @@ let rec gameLoop (state: State) =
     match command with
     | Quit -> printfn "Thank you for playing. Press enter to continue."
     | Invalid -> invalidInput ()
-    | Castle castle -> state |> restart
+    | Castle side ->
+        // execute castling
+
+        state |> restart
     | ChessMove(move1, move2) ->
         // Validate movements
         let validMovements = state |> validateMove move1 move2
